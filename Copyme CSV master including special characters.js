@@ -6,106 +6,78 @@
     localStorage.getItem(STORAGE_KEY) || "[]"
   );
 
-  const recipeMap = new Map(
-    existing.map(item => [
-      item.name.normalize("NFC").trim().toLowerCase(),
-      item
-    ])
+  // Use URL as unique key (IMPORTANT FIX)
+  const map = new Map(
+    existing.map(item => [item.url, item])
   );
 
-  document.querySelectorAll("h3.secondary").forEach((nameEl) => {
-    const card =
-      nameEl.closest("article") ||
-      nameEl.closest(".card") ||
-      nameEl.parentElement;
+  document.querySelectorAll(".card.food").forEach(card => {
+    const name =
+      card.querySelector("h6")?.textContent?.trim() || "";
 
-    const ratingEl =
-      card?.querySelector(".card__info-value.fw-600");
+    const rating =
+      card.querySelector(".card__info-value")?.textContent?.trim() || "";
 
-    let name = nameEl.textContent || "";
-    let rating = ratingEl?.textContent || "";
+    const category =
+      card.querySelector(".card__label")?.textContent?.trim() || "";
 
-    // Clean problematic whitespace
-    name = name
-      .normalize("NFC")
-      .replace(/\s+/g, " ")
-      .trim();
+    const country =
+      card.querySelector(".card__location a")?.textContent?.trim() || "";
 
-    rating = rating
-      .normalize("NFC")
-      .replace(/\s+/g, " ")
-      .trim();
+    const url =
+      card.querySelector(".card__visual-link")
+        ?.getAttribute("href") || "";
 
-    if (!name) return;
+    if (!url) return;
 
-    recipeMap.set(
-      name.toLowerCase(),
-      {
-        name,
-        rating
-      }
-    );
+    map.set(url, {
+      url,
+      name,
+      rating,
+      category,
+      country
+    });
   });
 
-  const merged = [...recipeMap.values()]
+  const merged = [...map.values()]
     .sort((a, b) =>
-      a.name.localeCompare(
-        b.name,
-        undefined,
-        { sensitivity: "base" }
-      )
+      a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
     );
 
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify(merged)
-  );
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
 
-  // Proper CSV escaping
-  const csvEscape = (value) =>
-    `"${String(value)
+  const csvEscape = (v) =>
+    `"${String(v || "")
       .replace(/"/g, '""')
-      .replace(/\r?\n/g, " ")
-      .replace(/\t/g, " ")}"`;
+      .replace(/\r?\n/g, " ")}"`;
 
   const csv = [
-    ["name", "rating"],
-    ...merged.map(item => [
-      csvEscape(item.name),
-      csvEscape(item.rating)
+    ["name", "rating", "category", "country", "url"],
+    ...merged.map(r => [
+      csvEscape(r.name),
+      csvEscape(r.rating),
+      csvEscape(r.category),
+      csvEscape(r.country),
+      csvEscape(r.url)
     ])
   ]
     .map(row => row.join(","))
     .join("\r\n");
 
-  let counter = Number(
-    localStorage.getItem(COUNTER_KEY) || 0
-  );
-
+  let counter = Number(localStorage.getItem(COUNTER_KEY) || 0);
   counter++;
-
-  localStorage.setItem(
-    COUNTER_KEY,
-    counter
-  );
+  localStorage.setItem(COUNTER_KEY, counter);
 
   const filename =
     counter === 1
       ? "tasteatlas-master.csv"
       : `tasteatlas-master-${counter}.csv`;
 
-  // UTF-8 BOM fixes Excel character corruption
-  const BOM = "\uFEFF";
-
-  const blob = new Blob(
-    [BOM + csv],
-    {
-      type: "text/csv;charset=utf-8;"
-    }
-  );
+  const blob = new Blob(["\uFEFF" + csv], {
+    type: "text/csv;charset=utf-8;"
+  });
 
   const link = document.createElement("a");
-
   link.href = URL.createObjectURL(blob);
   link.download = filename;
 
@@ -113,11 +85,10 @@
   link.click();
   document.body.removeChild(link);
 
-  URL.revokeObjectURL(link.href);
+  setTimeout(() => {
+    URL.revokeObjectURL(link.href);
+  }, 1000);
 
-  console.log(
-    `Master index contains ${merged.length} unique recipes`
-  );
-
-  console.log(`Exported ${filename}`);
+  console.log(`Stored: ${merged.length} unique recipes`);
+  console.log(`Exported: ${filename}`);
 })();
