@@ -29,8 +29,7 @@
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "tasteatlas-recipes.json";
-  a.download = "tasteatlas-recipes.csv";
-  a.click(); //downloads it as a json and csv file
+  a.click(); //downloads it as a jso
 
   URL.revokeObjectURL(a.href);
 })();
